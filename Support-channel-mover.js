@@ -141,7 +141,7 @@ registerPlugin({
     const event = require('event');
     const engine = require('engine');
     const backend = require('backend');
-    const requestDeleteChannels = []
+    const requestDeleteChannels = [];
     var supportChanneldeleteTime = config.supportChanneldeleteTime;
     var state = "2";
     var supporterAFKchannel = config.supporterAFKchannel;
