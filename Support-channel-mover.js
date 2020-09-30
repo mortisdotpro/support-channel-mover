@@ -264,7 +264,7 @@ registerPlugin({
     }
 
     function init() {
-
+        console.log("DEBUG: supportChannelMover has beed enabled!")
         event.on('clientMove', (moveEvent) => {
             if (config.checkboxchannelcloser) {
                 changeChannel();
