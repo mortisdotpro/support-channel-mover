@@ -32,6 +32,7 @@ registerPlugin({
                         type: 'select',
                         options: ["no notification", "chat", "poke"],
                         placeholder: 'false',
+                        default:'0'
                     },
                     {
                         name: 'userMessage',
@@ -60,7 +61,8 @@ registerPlugin({
                         title: 'How to notify the supporter(s)',
                         type: 'select',
                         options: ["no notification", "chat", "poke"],
-                        placeholder: 'false'
+                        placeholder: 'false',
+                        default:'0'
                     },
                     {
                         name: 'supporterMessage',
@@ -105,9 +107,50 @@ registerPlugin({
 
                     },
                     {
+                        name: 'disableOffline',
+                        title: 'disable channel creation if offline',
+                        type: 'checkbox',
+                        default: 'true'
+                    },
+                    {
+                        name: 'offlineSendOptionUser',
+                        title: 'How to notify the user that the support is closed',
+                        type: 'select',
+                        options: ["no notification", "chat", "poke"],
+                        placeholder: 'false',
+                        default:'0',
+                        conditions: [{
+                            field: 'disableOffline',
+                            value: true
+                        }],
+                    },
+                    {
+                        name: 'offlineUserMessage',
+                        title: 'user Message',
+                        type: 'string',
+                        placeholder: 'Sorry, no supporter is currently available',
+                        default: 'Sorry, no supporter is currently available',
+                        conditions: [{
+                            field: 'offlineSendOptionUser',
+                            value: 2
+                        }],
+                    },
+                    {
+                        name: 'offlineUserMessage',
+                        title: 'user Message',
+                        type: 'multiline',
+                        placeholder: 'Sorry, no supporter is currently available',
+                        default: 'Sorry, no supporter is currently available',
+                        conditions: [{
+                            field: 'offlineSendOptionUser',
+                            value: 1
+                        }],
+                    },
+                    {
                         name: 'checkboxchannelcloser',
                         title: 'enable channel rename online/offline',
                         type: 'checkbox',
+                        default: 'true'
                     },
                     {
                         name: 'waitingroomonline',
@@ -354,11 +397,17 @@ registerPlugin({
             if (toChannelId !== from.supportChannel) {
                 return;
             }
-/* 
-           if (getSupporters(from).length === 0) {
+
+            if (from.disableOffline && getSupporters(from).length === 0) {
+                var msg = parseVariables(from, from.offlineUserMessage, moveEvent);
+                if (from.offlineSendOptionUser == 1) {
+                    moveEvent.client.chat(msg);
+                } else if (from.offlineSendOptionUser == 2) {
+                    moveEvent.client.poke(msg);
+                }
                 return;
-            } 
-*/
+            }
+
             if (!from.includeMoved && moveEvent.invoker) {
                 return;
             }
