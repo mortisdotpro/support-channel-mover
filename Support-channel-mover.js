@@ -1,6 +1,6 @@
 registerPlugin({
         name: 'Support Channel notifyer + channel creator',
-        version: '1.2',
+        version: '1.3.1',
         description: 'Automatically opens a channel for your user and moves him in!',
         author: 'Mortis (https://discord.gg/mw2WMpW)',
         vars: [{
