@@ -568,6 +568,9 @@ registerPlugin({
 
         function init() {
 
+            for (var i = 0; i < config.channels.length; i++) {
+                changeChannel(config.channels[i]);
+            }
             
             event.on('clientMove', (moveEvent) => {
                 for (let channel of requestDeleteChannels) {
