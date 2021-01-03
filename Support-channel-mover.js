@@ -1,5 +1,6 @@
+/*jshint esversion: 6 */
 registerPlugin({
-        name: 'Support Channel notifyer + channel creator',
+        name: 'Support Channel notifier + channel creator',
         version: '1.3.1',
         description: 'Automatically opens a channel for your user and moves him in!',
         author: 'Mortis (https://discord.gg/mw2WMpW)',
@@ -27,12 +28,100 @@ registerPlugin({
                         }]
                     },
                     {
+                        name: 'whiteBlackListOption',
+                        title: 'Choose the type of the following list',
+                        type: 'select',
+                        options: ["no white/blacklist", "whitelist", "blacklist"],
+                        placeholder: 'false',
+                        default: "no white/blacklist"
+                    },
+                    {
+                        type: "array",
+                        name: 'whiteBlackList',
+                        title: "Group IDs to whitelist",
+                        default: [],
+                        conditions: [{
+                            field: 'whiteBlackListOption',
+                            value: 1
+                        }],
+                        vars: [{
+                            name: 'id',
+                            title: 'Enter Group ID',
+                            type: 'number',
+                            placeholder: '0'
+
+                        }]
+                    },
+                    {
+                        type: "array",
+                        name: 'whiteBlackList',
+                        title: "Group IDs to blacklist",
+                        default: [],
+                        conditions: [{
+                            field: 'whiteBlackListOption',
+                            value: 2
+                        }],
+                        vars: [{
+                            name: 'id',
+                            title: 'Enter Group ID',
+                            type: 'number',
+                            placeholder: '0'
+
+                        }]
+                    },
+                    {
+                        name: 'blockedSendOptionUser',
+                        title: 'How to notify the user that he is not allowed in support',
+                        type: 'select',
+                        options: ["no notification", "chat", "poke"],
+                        placeholder: 'false',
+                        default: '0',
+                        conditions: [{
+                            field: 'whiteBlackListOption',
+                            value: 1
+                        }],
+                    },
+                    {
+                        name: 'blockedSendOptionUser',
+                        title: 'How to notify the user that he is not allowed in support',
+                        type: 'select',
+                        options: ["no notification", "chat", "poke"],
+                        placeholder: 'false',
+                        default: '0',
+                        conditions: [{
+                            field: 'whiteBlackListOption',
+                            value: 2
+                        }],
+                    },
+                    {
+                        name: 'blockedUserMessage',
+                        title: 'user Message',
+                        type: 'string',
+                        placeholder: 'Sorry, at least one of your server groups is not allowed in support',
+                        default: 'Sorry, at least one of your server groups is not allowed in support',
+                        conditions: [{
+                            field: 'blockedSendOptionUser',
+                            value: 2
+                        }],
+                    },
+                    {
+                        name: 'blockedUserMessage',
+                        title: 'user Message',
+                        type: 'multiline',
+                        placeholder: 'Sorry, at least one of your server groups is not allowed in support',
+                        default: 'Sorry, at least one of your server groups is not allowed in support',
+                        conditions: [{
+                            field: 'blockedSendOptionUser',
+                            value: 1
+                        }],
+                    },
+                    {
                         name: 'sendOptionuser',
                         title: 'How to notify the user',
                         type: 'select',
                         options: ["no notification", "chat", "poke"],
                         placeholder: 'false',
-                        default:'0'
+                        default: '0'
                     },
                     {
                         name: 'userMessage',
@@ -62,7 +151,7 @@ registerPlugin({
                         type: 'select',
                         options: ["no notification", "chat", "poke"],
                         placeholder: 'false',
-                        default:'0'
+                        default: '0'
                     },
                     {
                         name: 'supporterMessage',
@@ -110,7 +199,7 @@ registerPlugin({
                         name: 'disableOffline',
                         title: 'disable channel creation if offline',
                         type: 'checkbox',
-                        default: 'true'
+                        default: '1'
                     },
                     {
                         name: 'offlineSendOptionUser',
@@ -118,7 +207,7 @@ registerPlugin({
                         type: 'select',
                         options: ["no notification", "chat", "poke"],
                         placeholder: 'false',
-                        default:'0',
+                        default: '0',
                         conditions: [{
                             field: 'disableOffline',
                             value: true
@@ -259,7 +348,7 @@ registerPlugin({
         const event = require('event');
         const engine = require('engine');
         const backend = require('backend');
-        const requestDeleteChannels = []
+        const requestDeleteChannels = [];
         for (var i = 0; i < config.channels.length; i++) {
             config.channels[i].state = "2";
         }
@@ -283,7 +372,7 @@ registerPlugin({
         }
 
 
-        function parseVariables(from, text, moveEvent) {
+        function parseVariables(from, text = " ", moveEvent) {
             var client = moveEvent.client;
             text = text.replace('%user%', client.name());
             text = text.replace('%country%', client.country());
@@ -327,7 +416,7 @@ registerPlugin({
                 if (channel) {
                     if (channel.getClientCount() === 0) {
                         channel.delete();
-                        requestDeleteChannels.splice(requestDeleteChannels.findIndex(c => c.id() === channel.id()), 1)
+                        requestDeleteChannels.splice(requestDeleteChannels.findIndex(c => c.id() === channel.id()), 1);
                     }
                 }
             }, config.supportChanneldeleteTime);
@@ -350,7 +439,7 @@ registerPlugin({
                     to.poke(msg);
                 }
             }
-        };
+        }
 
 
         function changeChannel(from) {
@@ -398,6 +487,31 @@ registerPlugin({
                 return;
             }
 
+            if (from.whiteBlackListOption) {
+                if (from.whiteBlackList) {
+                    var found = moveEvent.client.getServerGroups().some(function (g) {
+                        var found = false;
+                        for (var i = 0; i < from.whiteBlackList.length; i++) {
+                            if (from.whiteBlackList[i].id == g.id()) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        return found;
+                    });
+                    if (from.whiteBlackListOption == 1 && !found || from.whiteBlackListOption == 2 && found) {
+                        var msg = parseVariables(from, from.blockedUserMessage, moveEvent);
+                        if (from.blockedSendOptionUser == 1) {
+                            moveEvent.client.chat(msg);
+                        } else if (from.blockedSendOptionUser == 2) {
+                            moveEvent.client.poke(msg);
+                        }
+                        return;
+                    }
+                }
+            }
+
+
             if (from.disableOffline && getSupporters(from).length === 0) {
                 var msg = parseVariables(from, from.offlineUserMessage, moveEvent);
                 if (from.offlineSendOptionUser == 1) {
@@ -423,38 +537,38 @@ registerPlugin({
                 })) {
                 return;
             }
-            var userMessage = parseVariables(from, from.userMessage, moveEvent);
-            sendMessage(from, moveEvent.client, userMessage, USER);
-
-            var supporters = getSupporters(from);
-            supporters.forEach(client => {
+            if (from.userMessage) {
+                var userMessage = parseVariables(from, from.userMessage, moveEvent);
+                sendMessage(from, moveEvent.client, userMessage, USER);
+            }
+            if (from.supporterMessage) {
                 var supporterMessage = parseVariables(from, from.supporterMessage, moveEvent);
-                sendMessage(from, client, supporterMessage, SUPPORTER)
-            });
-
+                getSupporters(from).forEach(client => {
+                    sendMessage(from, client, supporterMessage, SUPPORTER);
+                });
+            }
 
             setTimeout(function () {
-                engine.log("Debug: Called with :: supportChannel:" + backend.getChannelByID(from.supportChannel).name() + " | creationtype:" + from.creationtype);
                 var channel = backend.getChannelByID(from.supportChannel);
                 var supportChannelName = parseVariables(from, from.supportChannelName, moveEvent);
                 var supportChannelDescription = parseVariables(from, from.supportChannelDescription, moveEvent);
-                var parentChannelID = from.parentChannelID;
-                var maxClientNumber = from.maxClientNumber;
                 var channelN = backend.createChannel({
                     name: supportChannelName,
-                    parent: parentChannelID,
+                    parent: from.parentChannelID,
                     permanent: true,
-                    maxClients: maxClientNumber,
-                    description: supportChannelDescription
+                    maxClients: from.maxClientNumber,
+                    description: supportChannelDescription,
                 });
                 moveEvent.client.moveTo(channelN);
 
                 requestDeleteChannels.push(channelN);
 
             }, parseInt(config.supportChannelcreateTime));
-        }
+        }  
 
         function init() {
+
+            
             event.on('clientMove', (moveEvent) => {
                 for (let channel of requestDeleteChannels) {
                     requestDelete(channel);
@@ -468,16 +582,17 @@ registerPlugin({
                 for (var i = 0; i < config.channels.length; i++) {
                     changeChannel(config.channels[i]);
                 }
-            })
+            });
             event.on('serverGroupRemoved', (ev) => {
                 for (var i = 0; i < config.channels.length; i++) {
                     changeChannel(config.channels[i]);
                 }
-            })
+            });
         }
         if (backend.isConnected()) {
             init();
         } else {
             event.on("connect", () => init());
         }
+
     });
