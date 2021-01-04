@@ -10,6 +10,12 @@ registerPlugin({
                 title: "Channels",
                 default: [],
                 vars: [{
+                        name: 'debug',
+                        title: 'DEBUG',
+                        type: 'checkbox',
+                        default: '0'
+                    },
+                    {
                         name: 'supportChannel',
                         title: 'select Supportchannel',
                         type: 'channel'
@@ -196,6 +202,13 @@ registerPlugin({
 
                     },
                     {
+                        name: 'channelType',
+                        title: 'Channeltype of created channel',
+                        type: 'select',
+                        options: ["permanent", "semi-permanent", /*"temporary"*/],
+                        default: 0,
+                    },
+                    {
                         name: 'disableOffline',
                         title: 'disable channel creation if offline',
                         type: 'checkbox',
@@ -206,7 +219,6 @@ registerPlugin({
                         title: 'How to notify the user that the support is closed',
                         type: 'select',
                         options: ["no notification", "chat", "poke"],
-                        placeholder: 'false',
                         default: '0',
                         conditions: [{
                             field: 'disableOffline',
@@ -296,6 +308,27 @@ registerPlugin({
                         default: ''
                     },
                     {
+                        name: 'channelCodec',
+                        title: 'Channel Codec of the created Channel',
+                        type: 'select',
+                        options: [
+                            'Speex Narrowband',
+                            'Speex Wideband',
+                            'Speex Ultra-Wideband',
+                            'CELT Mono',
+                            'Opus Voice',
+                            'Opus Music'
+                        ]
+                    },
+                    {
+                        name: 'channelCodecQuality',
+                        title: 'Codec Quality of the created Channel',
+                        type: 'select',
+                        options: [
+                            '0','1','2','3','4','5','6','7','8','9','10'
+                        ]
+                    },
+                    {
                         name: 'includeMoved',
                         title: 'also create a supportchannel for moved users',
                         type: 'checkbox',
@@ -317,6 +350,12 @@ registerPlugin({
                             title: 'Select channel',
                             type: 'channel'
                         }]
+                    },
+                    {
+                        name: 'deleteChannel',
+                        title: 'delete channel after it is empty',
+                        type: 'checkbox',
+                        default: 'true',
                     },
                     {
                         name: 'lang',
@@ -344,10 +383,10 @@ registerPlugin({
         ]
     },
     function (_, config, meta) {
-
         const event = require('event');
         const engine = require('engine');
         const backend = require('backend');
+
         const requestDeleteChannels = [];
         for (var i = 0; i < config.channels.length; i++) {
             config.channels[i].state = "2";
@@ -415,8 +454,9 @@ registerPlugin({
             setTimeout(function () {
                 if (channel) {
                     if (channel.getClientCount() === 0) {
+                        let id = channel.id();
                         channel.delete();
-                        requestDeleteChannels.splice(requestDeleteChannels.findIndex(c => c.id() === channel.id()), 1);
+                        requestDeleteChannels.splice(requestDeleteChannels.findIndex(c => c.id() === id), 1);
                     }
                 }
             }, config.supportChanneldeleteTime);
@@ -552,26 +592,52 @@ registerPlugin({
                 var channel = backend.getChannelByID(from.supportChannel);
                 var supportChannelName = parseVariables(from, from.supportChannelName, moveEvent);
                 var supportChannelDescription = parseVariables(from, from.supportChannelDescription, moveEvent);
-                var channelN = backend.createChannel({
+                var channelConfig = {
                     name: supportChannelName,
-                    parent: from.parentChannelID,
-                    permanent: true,
-                    maxClients: from.maxClientNumber,
                     description: supportChannelDescription,
-                });
+                    topic: "Created by SupportChannelMover",    //TODO
+                    maxClients: (+from.maxClientNumber || -1),
+                    codec: (+from.channelCodec || 4),
+                    codecQuality: (+from.channelCodecQuality || 6),
+                    permanent: false,
+                    semiPermanent: false,
+                };
+                if(!from.channelType){
+                    from.channelType = "0";
+                }
+                switch (from.channelType.toString()) {
+                    case "0":
+                        channelConfig.permanent = true;
+                        break;
+                    case "1":
+                        channelConfig.semiPermanent = true;
+                        break;
+                    case "2":
+                        channelConfig.deleteDelay = (+from.deleteDelay || 2);
+                        break;
+                }
+                if (from.channelPassword) channelConfig.password = from.channelPassword;
+                if (from.parentChannelID) channelConfig.parent = from.parentChannelID;
+
+
+              /*  engine.log(from.channelType);
+                engine.log(channelConfig); */
+                var channelN = backend.createChannel(channelConfig);
                 moveEvent.client.moveTo(channelN);
 
-                requestDeleteChannels.push(channelN);
+                if (from.deleteChannel) {
+                    requestDeleteChannels.push(channelN);
+                }
 
             }, parseInt(config.supportChannelcreateTime));
-        }  
+        }
 
         function init() {
 
             for (var i = 0; i < config.channels.length; i++) {
                 changeChannel(config.channels[i]);
             }
-            
+
             event.on('clientMove', (moveEvent) => {
                 for (let channel of requestDeleteChannels) {
                     requestDelete(channel);
@@ -592,10 +658,10 @@ registerPlugin({
                 }
             });
         }
+
         if (backend.isConnected()) {
             init();
         } else {
             event.on("connect", () => init());
         }
-
     });
